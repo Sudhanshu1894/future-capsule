@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OrbitX Dashboard | Time Stream</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+
+<style>
+/* ===== CORE VARIABLES ===== */
+/* DEFAULT (CYBER CYAN) */
+:root {
+    --bg-deep: #050a14;
+    --bg-mid: #0a192f;
+    --glass-bg: rgba(10, 25, 47, 0.6);
+    
+    /* Default Accent */
+    --accent: #00f2ff;
+    --accent-glow: rgba(0, 242, 255, 0.4);
+    --glass-border: rgba(0, 242, 255, 0.2);
+}
+
+/* 🟣 NEBULA PURPLE THEME */
+body.theme-purple {
+    --accent: #bc13fe;
+    --accent-glow: rgba(188, 19, 254, 0.4);
+    --glass-border: rgba(188, 19, 254, 0.2);
+}
+
+/* 🔴 MARS RED THEME */
+body.theme-red {
+    --accent: #ff2a6d;
+    --accent-glow: rgba(255, 42, 109, 0.4);
+    --glass-border: rgba(255, 42, 109, 0.2);
+}
+
+/* 🟢 MATRIX GREEN THEME */
+body.theme-green {
+    --accent: #05ffa1;
+    --accent-glow: rgba(5, 255, 161, 0.4);
+    --glass-border: rgba(5, 255, 161, 0.2);
+}
+
+/* 🟡 SOLAR GOLD THEME */
+body.theme-gold {
+    --accent: #ffd700;
+    --accent-glow: rgba(255, 215, 0, 0.4);
+    --glass-border: rgba(255, 215, 0, 0.2);
+}
+.btn-delete {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #ff2d55; /* Red border */
+    border-radius: 50%;
+    color: #ff2d55;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 100; /* Must be on top */
+    transition: all 0.2s;
+}
+
+.btn-delete:hover {
+    background: #ff2d55;
+    color: white;
+    box-shadow: 0 0 10px #ff2d55;
+}
+/* Modal Button Hovers */
+#btnConfirmPurge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px var(--error);
+}
+
+#purgeModal button:first-child:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+/* 💥 DISINTEGRATION ANIMATION */
+@keyframes disintegrate {
+    0% { transform: scale(1); opacity: 1; filter: hue-rotate(0deg); }
+    50% { transform: scale(0.9) skewX(20deg); opacity: 0.5; filter: hue-rotate(90deg) blur(5px); }
+    100% { transform: scale(0) skewX(40deg); opacity: 0; filter: blur(20px); }
+}
+
+.purging {
+    animation: disintegrate 0.6s forwards ease-in;
+    pointer-events: none;
+}
+/* Container must clip the glare */
+.capsule {
+    position: relative;
+    overflow: hidden;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+/* Theme-colored Border Glow on Hover */
+.capsule:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow), inset 0 0 10px var(--accent-glow);
+    transform: translateY(-5px) scale(1.02);
+    z-index: 10;
+}
+
+/* The Moving Glare Animation */
+.holo-glare {
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        115deg, 
+        transparent 40%, 
+        rgba(255, 255, 255, 0.1) 45%, 
+        var(--accent-glow) 50%, 
+        rgba(255, 255, 255, 0.1) 55%, 
+        transparent 60%
+    );
+    transform: skewX(-20deg);
+    transition: none;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+}
+
+.capsule:hover .holo-glare {
+    left: 150%;
+    transition: left 0.7s ease-in-out;
+}
+/* Faster transition for the background to feel responsive */
+.nebula-bg {
+    transition: transform 0.1s ease-out;
+    will-change: transform;
+}
+.nav-tabs { position: relative; }
+.nav-indicator {
+    position: absolute;
+    bottom: 5px;
+    height: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    z-index: 1;
+}
+/* Add a glowing border effect to the active Nav Tab */
+.nav-btn.active {
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-btn.active::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+    animation: rotateGlow 4s linear infinite;
+}
+/* THE SHOCKWAVE RING */
+.shockwave {
+    position: fixed;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+}
+#sanddial-container::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 50%; width: 2px; height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+    animation: flowDown 1.5s infinite linear;
+    opacity: 0.2;
+}
+.capsule-title {
+    font-family: "JetBrains Mono", monospace; /* Monospace keeps characters same width */
+    min-height: 1.2em; /* Prevents layout shifting */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+.system-log {
+    position: fixed;
+    bottom: 100px;
+    left: 24px;
+    width: 250px;
+    height: 120px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--glass-border);
+    border-left: 3px solid var(--accent);
+    padding: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--accent);
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 100;
+    display: flex;
+    flex-direction: column-reverse;
+}
+.log-entry {
+    margin-bottom: 4px;
+    animation: logFade 0.3s ease-out forwards;
+}
+@keyframes logFade {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes flowDown {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+}
+/* Animation for the falling stream of sand */
+@keyframes sandStream {
+    0% { height: 0; top: 0; opacity: 0; }
+    20% { height: 50%; top: 0; opacity: 1; }
+    100% { height: 100%; top: 100%; opacity: 0; }
+}
+
+/* The Stream Line (Only visible when Locked) */
+.mini-hourglass.locked .neck::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    background: var(--gold);
+    box-shadow: 0 0 5px var(--gold);
+    animation: sandStream 1s infinite linear;
+}
+
+/* Add a tiny "pile" at the bottom that pulses */
+.mini-hourglass.locked .bulb-bottom .sand {
+    height: 10px !important; /* Override the 0% */
+    border-radius: 50% 50% 0 0;
+    animation: sandPile 2s infinite ease-in-out;
+}
+
+@keyframes sandPile {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.2); }
+}
+/* THE ANIMATION */
+@keyframes rippleEffect {
+    0% {
+        width: 0px;
+        height: 0px;
+        opacity: 0.8;
+        border-width: 4px;
+    }
+    100% {
+        width: 150vw; /* Expand past screen edges */
+        height: 150vw;
+        opacity: 0;
+        border-width: 1px;
+    }
+}
+@keyframes rotateGlow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; cursor: none; /* 🔥 HIDE DEFAULT CURSOR */ }
+html { scroll-behavior: smooth; }
+
+body {
+    min-height: 100vh;
+    background-color: var(--bg-deep);
+    font-family: "Space Grotesk", sans-serif;
+    color: white;
+    overflow-x: hidden;
+    padding-bottom: 80px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; box-shadow: 0 0 10px var(--accent-glow); }
+
+/* ===== 🚀 CUSTOM SCI-FI CURSOR ===== */
+.cursor-dot, .cursor-outline {
+    position: fixed; top: 0; left: 0; transform: translate(-50%, -50%);
+    border-radius: 50%; z-index: 9999; pointer-events: none;
+}
+.cursor-dot { width: 8px; height: 8px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.cursor-outline {
+    width: 40px; height: 40px; border: 1px solid var(--accent);
+    transition: width 0.2s, height 0.2s, background-color 0.2s;
+}
+/* Hover effect for cursor */
+body.hovering .cursor-outline { width: 60px; height: 60px; background: rgba(0, 242, 255, 0.1); border-color: white; }
+
+/* ===== 📺 CRT SCANLINE OVERLAY ===== */
+.scanlines {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9000;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+    background-size: 100% 4px; pointer-events: none; opacity: 0.3;
+}
+
+/* ===== BACKGROUND LAYERS ===== */
+.nebula-container { position: fixed; inset: 0; z-index: -10; pointer-events: none; }
+.nebula-bg {
+    position: absolute; inset: 0;
+    background: url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2022&auto=format&fit=crop') center/cover no-repeat;
+    opacity: 0.6; mix-blend-mode: lighten;
+}
+.nebula-gradient-1 { position: absolute; inset: 0; background: linear-gradient(to top, var(--bg-deep), transparent, var(--bg-deep)); opacity: 0.7; }
+.nebula-gradient-2 { position: absolute; inset: 0; background: linear-gradient(to right, rgba(25,16,34,0.4), transparent, rgba(25,16,34,0.4)); }
+.nebula-glow { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(127,19,236,0.15), transparent 70%); }
+#starfield { position: fixed; inset: 0; z-index: -5; pointer-events: none; }
+
+/* ===== HEADER ===== */
+.header {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px; backdrop-filter: blur(12px);
+    background: rgba(25, 16, 34, 0.8); border-bottom: 1px solid var(--glass-border);
+    transition: padding 0.3s ease;
+}
+.header.scrolled { padding: 15px 24px; background: rgba(25, 16, 34, 0.95); }
+.header h1 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px; }
+.status { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 4px; color: var(--accent); }
+
+/* ===== NAVIGATION ===== */
+.nav-container {
+    display: flex; justify-content: center; margin-top: 20px; margin-bottom: 30px;
+    position: sticky; top: 85px; z-index: 40;
+}
+.nav-tabs {
+    background: var(--glass-bg); backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border); border-radius: 50px;
+    padding: 5px; display: flex; gap: 5px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.nav-btn {
+    background: transparent; border: none; color: #cbd5e1;
+    padding: 10px 24px; border-radius: 40px; cursor: pointer;
+    font-family: "Space Grotesk", sans-serif; font-weight: 600; font-size: 14px;
+    transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;
+}
+.nav-btn:hover { color: white; background: rgba(255,255,255,0.05); }
+.nav-btn.active { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent-glow); transform: scale(1.05); }
+
+/* ===== SECTIONS ===== */
+.view-section {
+    display: none; padding: 0 24px;
+    animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    max-width: 1200px; margin: 0 auto;
+}
+.view-section.active { display: block; }
+
+/* ===== CAPSULE GRID & 3D TILT CARDS ===== */
+.capsule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; }
+.capsule {
+    background: var(--glass-bg); backdrop-filter: blur(14px);
+    border-radius: 22px; border: 1px solid var(--glass-border);
+    padding: 20px; display: flex; flex-direction: column; align-items: center;
+    gap: 15px; box-shadow: 0 10px 40px rgba(0,0,0,.4); 
+    transition: transform 0.1s, border-color 0.3s; /* Fast transform for tilt */
+    cursor: none; opacity: 0; animation: popIn 0.5s ease forwards;
+    transform-style: preserve-3d; perspective: 1000px; /* Enable 3D */
+}
+.capsule:hover { border-color: var(--accent); z-index: 10; }
+
+/* 3D Tilt Glare */
+.capsule::after {
+    content: ""; position: absolute; inset: 0; border-radius: 22px;
+    background: linear-gradient(125deg, rgba(255,255,255,0.1) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.05) 100%);
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.capsule:hover::after { opacity: 1; }
+
+/* ✅ MINI HOURGLASS */
+/* ✅ 3D MINI-HOURGLASS CONTAINER */
+.mini-hourglass-3d {
+    width: 80px;
+    height: 100px;
+    position: relative;
+    cursor: none;
+    background: radial-gradient(circle, rgba(0, 242, 255, 0.05) 0%, transparent 70%);
+    border-radius: 15px;
+}
+.bulb {
+    width: 50px; height: 35px; background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative; overflow: hidden; backdrop-filter: blur(4px);
+}
+.bulb-top { border-radius: 25px 25px 5px 5px; border-bottom: none; }
+.bulb-bottom { border-radius: 5px 5px 25px 25px; border-top: none; }
+.neck { width: 6px; height: 6px; background: rgba(255,255,255,0.1); border-left: 1px solid rgba(255,255,255,0.3); border-right: 1px solid rgba(255,255,255,0.3); }
+
+/* Sand Logic */
+.sand { position: absolute; width: 100%; left: 0; transition: height 0.5s; }
+.mini-hourglass.locked .bulb-top .sand { height: 80%; bottom: 0; background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+.mini-hourglass.locked .bulb-bottom .sand { height: 0%; bottom: 0; }
+.mini-hourglass.unlocked .bulb-top .sand { height: 0%; bottom: 0; }
+.mini-hourglass.unlocked .bulb-bottom .sand { height: 80%; bottom: 0; background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+.particle { position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%; opacity: 0.6; }
+
+.capsule-title { font-size: 16px; font-weight: bold; color: white; text-align: center; margin-top: 5px; transform: translateZ(10px);}
+.capsule-status { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; margin-top: 5px; }
+
+/* ✅ COUNTDOWN TIMER STYLE */
+.capsule-timer {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    background: rgba(0, 0, 0, 0.3); padding: 5px 10px; border-radius: 8px;
+    color: var(--accent); border: 1px solid rgba(0, 242, 255, 0.2);
+    margin-top: auto; min-width: 140px; text-align: center; transform: translateZ(15px);
+}
+.capsule-timer.expired { color: var(--emerald); border-color: var(--emerald); }
+
+/* ===== CREATE SECTION ===== */
+.create-container { display: flex; flex-direction: column; align-items: center; gap: 30px; max-width: 700px; margin: 0 auto; }
+.create-card { 
+    width: 100%; background: rgba(20, 20, 35, 0.8); backdrop-filter: blur(20px); 
+    border: 1px solid var(--accent); border-radius: 24px; padding: 40px; 
+    box-shadow: 0 0 50px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+}
+.create-card::before {
+    content: ""; position: absolute; inset: 0; 
+    background-image: radial-gradient(var(--glass-border) 1px, transparent 1px);
+    background-size: 20px 20px; opacity: 0.3; pointer-events: none;
+}
+#sanddial-container { 
+    width: 100%; height: 300px; background: radial-gradient(circle, #000 0%, #1a1a2e 100%); 
+    border-radius: 15px; margin-bottom: 30px; cursor: none; position: relative; 
+    overflow: hidden; border: 1px solid var(--glass-border); 
+    box-shadow: inset 0 0 50px rgba(0, 242, 255, 0.1);
+}
+.create-form { display: flex; flex-direction: column; gap: 20px; position: relative; z-index: 2; }
+
+/* Input Fields */
+.input-group { display: flex; flex-direction: column; gap: 8px; }
+.input-group label { font-family: "JetBrains Mono"; font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-left: 5px; }
+.tech-input { 
+    background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); 
+    color: white; padding: 16px; border-radius: 8px; outline: none; 
+    font-family: "Space Grotesk", sans-serif; font-size: 15px; transition: all 0.3s; 
+}
+.tech-input:focus { border-color: var(--accent); background: rgba(0, 242, 255, 0.05); box-shadow: 0 0 15px rgba(0, 242, 255, 0.1); }
+.file-upload-wrapper {
+    border: 2px dashed rgba(255, 255, 255, 0.2); border-radius: 12px;
+    padding: 20px; text-align: center; cursor: none; transition: all 0.3s;
+    background: rgba(255, 255, 255, 0.02);
+}
+.file-upload-wrapper:hover { border-color: var(--accent); background: rgba(0, 242, 255, 0.05); }
+
+/* Launch Button */
+.btn-seal { 
+    width: 100%; padding: 18px; margin-top: 10px; border-radius: 12px; font-weight: bold; 
+    background: var(--accent); color: black; border: none; font-size: 16px;
+    cursor: none; text-transform: uppercase; letter-spacing: 2px; 
+    box-shadow: 0 0 20px var(--accent-glow); transition: all 0.3s; position: relative; overflow: hidden;
+}
+.btn-seal:hover { transform: translateY(-2px); box-shadow: 0 0 40px var(--accent-glow); }
+.btn-seal::after {
+    content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.8), transparent);
+    transform: rotate(45deg); animation: shine 3s infinite;
+}
+@keyframes shine { 0% { left: -100%; } 20% { left: 100%; } 100% { left: 100%; } }
+
+/* ===== UTILS ===== */
+.profile-area { display: flex; align-items: center; gap: 15px; cursor: none; position: relative; z-index: 100; }
+.profile-pic { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); transition: transform 0.3s; }
+.profile-area:hover .profile-pic { transform: scale(1.1); box-shadow: 0 0 15px var(--accent); }
+.profile-menu { position: absolute; top: 60px; right: 0; width: 320px; background: rgba(25, 16, 34, 0.95); border: 1px solid var(--glass-border); border-radius: 16px; padding: 0; display: none; flex-direction: column; z-index: 200; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+.menu-item { padding: 14px 20px; font-size: 14px; color: #cbd5e1; cursor: none; display: flex; align-items: center; gap: 12px; position: relative; transition: background 0.2s; }
+.menu-item:hover { background: rgba(255,255,255,0.05); color: white; }
+.menu-item input[type="file"] { position: absolute; opacity: 0; inset: 0; cursor: none; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s; }
+.modal-overlay.active { display: flex; opacity: 1; }
+.modal-box { background: #1a1a2e; padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; border: 1px solid var(--accent); box-shadow: 0 0 40px rgba(0,242,255,0.2); transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: none;}
+.modal-overlay.active .modal-box { transform: scale(1); }
+/* SAND STREAM ANIMATION */
+@keyframes dropStream {
+    0% { height: 0; top: 0; opacity: 0; }
+    50% { height: 100%; top: 0; opacity: 1; }
+    100% { height: 0; top: 100%; opacity: 0; }
+}
+
+/* ROTATING LOAD ANIMATION (for the pile) */
+@keyframes pileUp {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.1); }
+}
+
+/* LOCKED STATE: Stream Flowing */
+.mini-hourglass.locked .sand-stream {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 100%;
+    background: var(--gold);
+    box-shadow: 0 0 5px var(--gold);
+    animation: dropStream 0.8s infinite linear;
+    z-index: 5;
+}
+
+/* LOCKED STATE: Bottom Pile */
+.mini-hourglass.locked .bulb-bottom .sand {
+    height: 15% !important; /* Force a small pile */
+    border-radius: 10px 10px 0 0;
+    animation: pileUp 2s infinite ease-in-out;
+    box-shadow: 0 0 10px var(--gold);
+}
+
+/* LOCKED STATE: Top Sand Full */
+.mini-hourglass.locked .bulb-top .sand {
+    height: 100% !important;
+    border-radius: 0 0 25px 25px;
+}
+
+/* UNLOCKED STATE: Top Empty, Bottom Full */
+.mini-hourglass.unlocked .bulb-top .sand { height: 0% !important; }
+.mini-hourglass.unlocked .bulb-bottom .sand { height: 100% !important; border-radius: 0 0 25px 25px; }
+.mini-hourglass.unlocked .sand-stream { display: none; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+</style>
+</head>
+
+<body>
+
+<div class="cursor-dot" id="cursor-dot"></div>
+<div class="cursor-outline" id="cursor-outline"></div>
+
+<div class="scanlines"></div>
+
+<div class="nebula-container">
+    <div class="nebula-bg"></div>
+    <div class="nebula-gradient-1"></div>
+    <div class="nebula-gradient-2"></div>
+    <div class="nebula-glow"></div>
+</div>
+<canvas id="starfield"></canvas>
+
+<div class="header" id="mainHeader">
+  <div>
+    <h1>STASIS</h1>
+    <div class="status">TIME STREAM ACTIVE</div>
+  </div>
+  
+  <div style="display:flex; gap:20px; align-items:center;">
+      <span id="soundToggle" class="material-symbols-outlined" style="cursor:none; color:var(--accent);" onclick="toggleMute()" onmouseenter="playSfx('hover')">volume_up</span>
+      <div style="position: relative;">
+    <span class="material-symbols-outlined" onclick="toggleThemeMenu()" 
+          style="cursor:pointer; color:var(--accent); margin-right:20px;">
+          palette
+    </span>
+    
+    <div id="themeMenu" style="position: absolute; top: 40px; right: 0; background: rgba(0,0,0,0.9); border: 1px solid var(--accent); padding: 15px; border-radius: 12px; display: none; gap: 10px; z-index: 200;">
+        <div onclick="setTheme('default')" style="width:20px; height:20px; background:#00f2ff; border-radius:50%; cursor:pointer; border:2px solid white;"></div>
+        <div onclick="setTheme('purple')" style="width:20px; height:20px; background:#bc13fe; border-radius:50%; cursor:pointer; border:1px solid #555;"></div>
+        <div onclick="setTheme('red')" style="width:20px; height:20px; background:#ff2a6d; border-radius:50%; cursor:pointer; border:1px solid #555;"></div>
+        <div onclick="setTheme('green')" style="width:20px; height:20px; background:#05ffa1; border-radius:50%; cursor:pointer; border:1px solid #555;"></div>
+        <div onclick="setTheme('gold')" style="width:20px; height:20px; background:#ffd700; border-radius:50%; cursor:pointer; border:1px solid #555;"></div>
+    </div>
+</div>
+      <div class="profile-area" onmouseenter="playSfx('hover')">
+        <img id="profileImage" class="profile-pic" src="./defaultprofile.jpg" onerror="this.onerror=null; this.src='./defaultprofile.jpg';" onclick="toggleProfileMenu()">
+        <div class="profile-menu" id="profileMenu">
+          <div style="padding:20px; border-bottom:1px solid rgba(255,255,255,0.1);">
+             <div id="profileName" style="font-weight:bold;">User</div>
+             <div id="profileEmail" style="font-size:12px; opacity:0.7;">email@test.com</div>
+          </div>
+          <label class="menu-item" onmouseenter="playSfx('hover')"><span class="material-symbols-outlined">photo_camera</span> Change Photo <input type="file" id="profileUpload" accept="image/*"></label>
+          <div class="menu-item" onclick="deleteProfilePhoto()" onmouseenter="playSfx('hover')">
+    <span class="material-symbols-outlined">delete</span> 
+    Delete Photo
+</div>
+          <div class="menu-item" onclick="logout()" onmouseenter="playSfx('hover')"><span class="material-symbols-outlined">logout</span> Logout</div>
+        </div>
+      </div>
+  </div>
+</div>
+
+<div class="nav-container">
+    <div class="nav-tabs">
+        <button class="nav-btn active" onclick="switchTab('locked')" onmouseenter="playSfx('hover')"><span class="material-symbols-outlined">lock</span> Locked Vault</button>
+        <button class="nav-btn" onclick="switchTab('unlocked')" onmouseenter="playSfx('hover')"><span class="material-symbols-outlined">lock_open</span> Decrypted</button>
+        <button class="nav-btn" onclick="switchTab('create')" onmouseenter="playSfx('hover')"><span class="material-symbols-outlined">rocket_launch</span> Seal New</button>
+    </div>
+</div>
+
+<div id="view-locked" class="view-section active">
+    <div class="capsule-grid" id="grid-locked"></div>
+    <div id="empty-locked" style="text-align:center; opacity:0.5; margin-top:50px; display:none;">
+        <span class="material-symbols-outlined" style="font-size:40px;">lock_clock</span><p>No locked capsules.</p>
+    </div>
+</div>
+
+<div id="view-unlocked" class="view-section">
+    <div class="capsule-grid" id="grid-unlocked"></div>
+    <div id="empty-unlocked" style="text-align:center; opacity:0.5; margin-top:50px; display:none;">
+        <span class="material-symbols-outlined" style="font-size:40px;">folder_open</span><p>No unlocked memories.</p>
+    </div>
+</div>
+
+<div id="view-create" class="view-section">
+    <div class="create-container">
+        <div class="create-card">
+            <h2 style="text-align:center; margin-bottom:20px; color:var(--accent); letter-spacing:3px;">INITIALIZE NEW CAPSULE</h2>
+            <div id="sanddial-container"></div>
+            <div class="create-form">
+                <div class="input-group">
+                    <label>Designation (Title)</label>
+                    <input type="text" class="tech-input" id="capTitle" placeholder="e.g. Project Launch 2026" onmouseenter="playSfx('hover')">
+                </div>
+                <div class="input-group">
+                    <label>Log Entry (Message)</label>
+                    <textarea class="tech-input" id="capMessage" placeholder="Record your message for the future..." rows="4" onmouseenter="playSfx('hover')"></textarea>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="input-group">
+                        <label>Target Date</label>
+                        <input type="date" class="tech-input" id="capDate" onmouseenter="playSfx('hover')">
+                    </div>
+                    <div class="input-group">
+                        <label>Artifact</label>
+                        <label class="file-upload-wrapper" onmouseenter="playSfx('hover')">
+                            <span class="material-symbols-outlined" style="color:var(--accent);">upload_file</span>
+                            <div style="font-size:12px; margin-top:5px; opacity:0.7;">Click to Upload</div>
+                            <input type="file" id="capImage" accept="image/*" style="display:none;" onchange="document.querySelector('.file-upload-wrapper div').innerText = this.files[0].name">
+                        </label>
+                    </div>
+                </div>
+                <button class="btn-seal" onclick="submitCapsule()" onmouseenter="playSfx('hover')">
+                    <span class="material-symbols-outlined" style="vertical-align:middle; margin-right:5px;">lock</span> Engage Time Lock
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="viewCapsuleModal" class="modal-overlay">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <h2 id="viewTitle" style="color:var(--accent); margin:0;">Title</h2>
+            <span class="material-symbols-outlined" onclick="closeViewModal()" style="cursor:none; pointer-events:all;" onmouseenter="playSfx('hover')">close</span>
+        </div>
+        <img id="viewImage" src="" style="width:100%; max-height:250px; object-fit:contain; background:black; border-radius:10px; margin-bottom:15px; border:1px solid #333;">
+        <p style="font-size:12px; color:#aaa; margin-bottom:5px;">MESSAGE:</p>
+        <div id="viewMessage" style="background:rgba(255,255,255,0.05); padding:15px; border-radius:10px; color:#ddd; font-size:14px; min-height:60px;"></div>
+        <div id="viewDate" style="text-align:right; font-size:11px; margin-top:10px; color:var(--accent);"></div>
+    </div>
+</div>
+<div id="purgeModal" class="modal-overlay">
+    <div class="modal-box" style="border-color: var(--error); box-shadow: 0 0 40px rgba(255, 45, 85, 0.3); text-align: center;">
+        
+        <span class="material-symbols-outlined" style="font-size: 40px; color: var(--error); margin-bottom: 15px;">warning</span>
+        
+        <h2 style="color: var(--error); letter-spacing: 3px; font-family: 'Space Grotesk'; margin-bottom: 10px; text-transform: uppercase;">
+            Purge Protocol
+        </h2>
+        
+        <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 25px; line-height: 1.6;">
+            <strong style="color: white;">WARNING:</strong> You are about to permanently disintegrate this artifact from the timeline.<br>
+            <span style="font-family: 'JetBrains Mono'; font-size: 12px; opacity: 0.7;">> DATA RECOVERY: IMPOSSIBLE</span>
+        </p>
+        
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <button onclick="closePurgeModal()" 
+                style="padding: 12px 24px; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; border-radius: 8px; cursor: pointer; font-family: 'JetBrains Mono'; font-size: 12px; transition: 0.2s;">
+                CANCEL SEQUENCE
+            </button>
+            
+            <button id="btnConfirmPurge" 
+                style="padding: 12px 24px; background: var(--error); border: none; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: 'JetBrains Mono'; font-size: 12px; box-shadow: 0 0 20px rgba(255, 45, 85, 0.4); transition: 0.2s;">
+                CONFIRM PURGE
+            </button>
+        </div>
+    </div>
+</div>
+<div id="profilePurgeModal" class="modal-overlay">
+    <div class="modal-box" style="border-color: var(--error); box-shadow: 0 0 40px rgba(255, 45, 85, 0.3); text-align: center;">
+        
+        <span class="material-symbols-outlined" style="font-size: 40px; color: var(--error); margin-bottom: 15px;">no_photography</span>
+        
+        <h2 style="color: var(--error); letter-spacing: 3px; font-family: 'Space Grotesk'; margin-bottom: 10px; text-transform: uppercase;">
+            Revoke ID?
+        </h2>
+        
+        <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 25px; line-height: 1.6;">
+            <strong style="color: white;">WARNING:</strong> This will permanently delete your biometric profile image.<br>
+            <span style="font-family: 'JetBrains Mono'; font-size: 12px; opacity: 0.7;">> IRREVERSIBLE ACTION</span>
+        </p>
+        
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <button onclick="closeProfileModal()" 
+                style="padding: 12px 24px; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; border-radius: 8px; cursor: pointer; font-family: 'JetBrains Mono'; font-size: 12px; transition: 0.2s;">
+                CANCEL
+            </button>
+            
+            <button onclick="confirmProfilePurge()" 
+                style="padding: 12px 24px; background: var(--error); border: none; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: 'JetBrains Mono'; font-size: 12px; box-shadow: 0 0 20px rgba(255, 45, 85, 0.4); transition: 0.2s;">
+                CONFIRM DELETION
+            </button>
+        </div>
+    </div>
+</div>
+<div id="customToast" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#0f172a; border:1px solid var(--accent); color:var(--accent); padding:15px 25px; border-radius:10px; display:none; z-index:3000;">
+    <span id="toastMessage">Action Successful</span>
+</div>
+
+<script>
+const API_BASE = "http://localhost:5000";
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+/* ===== 🖱️ CUSTOM CURSOR LOGIC ===== */
+const cursorDot = document.getElementById("cursor-dot");
+const cursorOutline = document.getElementById("cursor-outline");
+
+window.addEventListener("mousemove", (e) => {
+    const posX = e.clientX;
+    const posY = e.clientY;
+    
+    // Dot follows instantly
+    cursorDot.style.left = `${posX}px`;
+    cursorDot.style.top = `${posY}px`;
+    
+    // Outline follows with slight delay
+    cursorOutline.animate({
+        left: `${posX}px`,
+        top: `${posY}px`
+    }, { duration: 500, fill: "forwards" });
+});
+
+// Add hover effect to interactive elements
+document.querySelectorAll('button, a, input, textarea, .capsule, .profile-area, .menu-item, span.material-symbols-outlined').forEach(el => {
+    el.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
+    el.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+});
+
+/* ===== 🔉 AUDIO ENGINE ===== */
+const sounds = {
+    hover: new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'),
+    click: new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3'),
+    lock: new Audio('https://assets.mixkit.co/active_storage/sfx/2580/2580-preview.mp3'),
+    unlock: new Audio('https://assets.mixkit.co/active_storage/sfx/1126/1126-preview.mp3'),
+    error: new Audio('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3')
+};
+Object.values(sounds).forEach(s => s.volume = 0.3);
+sounds.lock.volume = 0.5; 
+let isMuted = false;
+
+function playSfx(type) {
+    if(isMuted || !sounds[type]) return;
+    const clone = sounds[type].cloneNode();
+    clone.volume = sounds[type].volume;
+    clone.play().catch(e => {}); 
+}
+function toggleMute() {
+    isMuted = !isMuted;
+    const btn = document.getElementById("soundToggle");
+    btn.innerText = isMuted ? "volume_off" : "volume_up";
+    btn.style.opacity = isMuted ? "0.5" : "1";
+    playSfx('click');
+}
+
+/* ===== APP LOGIC ===== */
+let globalCapsules = [];
+let countdownInterval;
+
+window.addEventListener("scroll", () => {
+    const header = document.getElementById("mainHeader");
+    if(window.scrollY > 20) header.classList.add("scrolled");
+    else header.classList.remove("scrolled");
+});
+
+function switchTab(tabName) {
+    playSfx('click');
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById(`view-${tabName}`).classList.add('active');
+    if(tabName === 'create') setTimeout(init3DSanddial, 100);
+    const btn = event.currentTarget;
+    const indicator = document.getElementById('navIndicator');
+    indicator.style.width = btn.offsetWidth + 'px';
+    indicator.style.left = btn.offsetLeft + 'px';
+    
+    addLog(`STREAM SHIFTED TO: ${tabName.toUpperCase()}`);
+}
+
+async function loadCapsules(){
+  try {
+    const res = await fetch(`${API_BASE}/api/capsules/dashboard`, { headers: { Authorization: `Bearer ${token}` } });
+    if(!res.ok) return;
+    const data = await res.json();
+    globalCapsules = data;
+    const lockedGrid = document.getElementById("grid-locked");
+    const unlockedGrid = document.getElementById("grid-unlocked");
+    lockedGrid.innerHTML = ""; unlockedGrid.innerHTML = "";
+    let l=0, u=0;
+    if(countdownInterval) clearInterval(countdownInterval);
+
+    data.forEach((cap, index) => {
+        const card = createCard(cap, index);
+        card.style.animationDelay = `${index * 0.05}s`;
+        if(cap.isUnlocked) { unlockedGrid.append(card); u++; } 
+        else { lockedGrid.append(card); l++; }
+    });
+    startCountdowns();
+    document.getElementById("empty-locked").style.display = l === 0 ? "block" : "none";
+    document.getElementById("empty-unlocked").style.display = u === 0 ? "block" : "none";
+    
+    // 🔥 RE-APPLY 3D TILT EFFECT TO NEW CARDS
+    initTiltEffect();
+
+  } catch(err) { console.error(err); }
+}
+
+function createCard(cap, index) {
+    const div = document.createElement("div"); 
+    div.className = "capsule";
+    
+    // Status Logic
+    const isUnlocked = cap.isUnlocked;
+    const statusClass = isUnlocked ? "unlocked" : "locked";
+    const themeColor = isUnlocked ? 'var(--accent)' : 'var(--gold)';
+    const dateStr = new Date(cap.unlockAt).toLocaleDateString();
+
+    // Interaction Logic
+    div.onclick = () => openCapsule(index);
+    div.onmouseenter = () => {
+        playSfx('hover');
+        document.body.classList.add('hovering');
+        glitchText(div.querySelector(".capsule-title"), cap.title || "ARTIFACT");
+    };
+    div.onmouseleave = () => document.body.classList.remove('hovering');
+
+    div.innerHTML = `
+        ${isUnlocked ? `
+            <div class="btn-delete" onclick="deleteCapsule('${cap._id}', this, event)">
+                <span class="material-symbols-outlined" style="font-size:16px;">delete</span>
+            </div>
+        ` : ''}
+        <div class="holo-glare"></div>
+
+        <div class="mini-hourglass ${statusClass}">
+            <div class="bulb bulb-top" style="border-color: var(--glass-border); position: relative;">
+                <div class="sand" style="background: ${themeColor}; transition: height 0.5s;"></div>
+            </div>
+            
+            <div class="neck" style="background: var(--glass-border); position: relative; height: 10px; width: 4px; margin: 0 auto;">
+                <div class="sand-stream"></div>
+            </div>
+            
+            <div class="bulb bulb-bottom" style="border-color: var(--glass-border); position: relative;">
+                <div class="sand" style="background: ${themeColor}; transition: height 0.5s;"></div>
+            </div>
+        </div>
+
+        <div class="capsule-title" style="color: var(--accent); margin-top: 10px;">${cap.title || "ENCRYPTED"}</div>
+        
+        <div class="capsule-status" style="color: ${isUnlocked ? 'var(--emerald)' : 'var(--gold)'}; font-size: 10px; font-weight: bold; letter-spacing: 2px;">
+            ${isUnlocked ? "UNSEALED" : "FLOWING..."}
+        </div>
+        
+        <div class="capsule-timer" id="timer-${index}" data-unlock="${cap.unlockAt}" 
+             style="font-family: 'JetBrains Mono'; font-size: 10px; opacity: 0.7; margin-top: auto; border-top: 1px solid var(--glass-border); padding-top: 8px; width: 100%; text-align: center;">
+             Target: ${dateStr}
+        </div>
+    `;
+    return div;
+}
+function startCountdowns() {
+    countdownInterval = setInterval(() => {
+        const timers = document.querySelectorAll(".capsule-timer[data-unlock]");
+        if(timers.length === 0) return;
+        const now = new Date().getTime();
+        timers.forEach(timer => {
+            const unlockDate = new Date(timer.getAttribute("data-unlock")).getTime();
+            const distance = unlockDate - now;
+            if (distance < 0) { timer.innerText = "UNLOCKING..."; timer.classList.add("expired"); if(distance > -2000) loadCapsules(); } 
+            else {
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                timer.innerText = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+            }
+        });
+    }, 1000);
+}
+
+async function submitCapsule() {
+    playSfx('click'); 
+    const title = document.getElementById("capTitle").value;
+    const message = document.getElementById("capMessage").value;
+    const date = document.getElementById("capDate").value;
+    const file = document.getElementById("capImage").files[0];
+    if (!title || !date) { showToast("Title/Date required", "error"); playSfx('error'); return; }
+    const fd = new FormData(); fd.append("title", title); fd.append("message", message); fd.append("unlockDate", date);
+    if (file) fd.append("image", file);
+    try {
+        const res = await fetch(`${API_BASE}/api/capsules/create`, { method: "POST", headers: { "Authorization": `Bearer ${token}` }, body: fd });
+        if (res.ok) {triggerPulse(window.innerWidth / 2, window.innerHeight / 2);
+           playSfx('lock'); showToast("Capsule sealed!", "success"); document.getElementById("capTitle").value = ""; document.querySelector("button[onclick=\"switchTab('locked')\"]").click(); loadCapsules(); } else { alert("Error"); playSfx('error'); }
+    } catch (err) { alert("Network Error"); playSfx('error'); }
+}
+/* ===== 🔴 CUSTOM PURGE LOGIC ===== */
+let capsuleToDeleteId = null;   // Stores ID of the capsule to delete
+let capsuleToDeleteCard = null; // Stores the HTML element to animate
+
+// 1. Triggered when you click the Trash Icon
+/* ===== 🔴 FIXED PURGE LOGIC ===== */
+function deleteCapsule(id, btnElement, e) {
+    // 1. Stop the card from opening
+    e.stopPropagation(); 
+    playSfx('click');
+    
+    // 2. Store the ID and the Card Element on the Modal itself
+    const confirmBtn = document.getElementById("btnConfirmPurge");
+    confirmBtn.dataset.id = id; // Store ID here!
+    
+    // Store the card element in a global variable (easiest way for DOM elements)
+    window.cardToDelete = btnElement.closest('.capsule');
+    
+    // 3. Open the Modal
+    document.getElementById("purgeModal").classList.add("active");
+    playSfx('error'); 
+}
+
+function closePurgeModal() {
+    playSfx('click');
+    document.getElementById("purgeModal").classList.remove("active");
+}
+// ONE-TIME EVENT LISTENER (Do not put this inside another function)
+document.getElementById("btnConfirmPurge").addEventListener("click", async function() {
+    const btn = this; // The confirm button
+    const id = btn.dataset.id; // Get the ID we stored
+    const card = window.cardToDelete; // Get the card element
+
+    if (!id || !card) return;
+
+    // Close Modal
+    closePurgeModal();
+    
+    // Visual Feedback
+    card.classList.add('purging');
+    addLog(`PURGE INITIATED: ${id.substring(0,5)}...`);
+    playSfx('warp');
+
+    try {
+        const res = await fetch(`${API_BASE}/api/capsules/${id}`, { 
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            setTimeout(() => {
+                card.remove();
+                addLog("TIMELINE STABILIZED.");
+                
+                // Empty State Check
+                const grid = document.getElementById("grid-unlocked");
+                if(grid.children.length === 0) {
+                   grid.innerHTML = `<div style="text-align:center; opacity:0.5; width:100%; grid-column: 1 / -1; padding-top: 50px;">NO ARTIFACTS FOUND</div>`;
+                }
+            }, 600);
+        } else {
+            alert("Delete Failed.");
+            card.classList.remove('purging');
+        }
+    } catch (err) {
+        console.error(err);
+        card.classList.remove('purging');
+    }
+});
+
+function openCapsule(index) {
+    const cap = globalCapsules[index];
+    
+    // 1. Lock Check
+    if (!cap.isUnlocked) { 
+        showToast("LOCKED: ACCESS DENIED", "error"); 
+        playSfx('error'); 
+        return; 
+    }
+
+    playSfx('unlock');
+    const modal = document.getElementById("viewCapsuleModal");
+    const title = document.getElementById("viewTitle");
+    const message = document.getElementById("viewMessage");
+    const imgEl = document.getElementById("viewImage"); // <--- Re-added reference
+    const dateEl = document.getElementById("viewDate");
+
+    // 2. Set "Processing" State (Hide real data first)
+    title.innerText = "DECRYPTING...";
+    message.innerText = "> INITIALIZING DATA RECOVERY...\n> RECONSTRUCTING TEMPORAL FRAGMENTS...";
+    imgEl.style.display = "none"; // Hide image during load
+    imgEl.src = ""; 
+    dateEl.innerText = "";
+    
+    modal.classList.add("active");
+
+    // 3. The Decryption Animation
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += 10;
+        // Optional: Update a loading bar if you have one, or just the log
+        if(progress % 20 === 0) addLog(`DECRYPTING DATA: ${progress}%...`);
+        
+        if (progress >= 100) {
+            clearInterval(interval);
+            
+            // 🔥 4. FINAL REVEAL (The Missing Part)
+            playSfx('click'); // Satisfying click sound on finish
+            glitchText(title, cap.title);
+            message.innerText = cap.message || "No text data recorded.";
+            dateEl.innerText = "Unlocked: " + new Date().toLocaleDateString();
+
+            // ✅ SHOW THE IMAGE IF IT EXISTS
+            if(cap.image) { 
+                imgEl.src = cap.image; 
+                imgEl.style.display = "block"; 
+                // Add a cool fade-in effect for the image
+                imgEl.animate([
+                    { opacity: 0, filter: 'blur(10px)' },
+                    { opacity: 1, filter: 'blur(0px)' }
+                ], { duration: 500, fill: 'forwards' });
+            } else {
+                imgEl.style.display = "none";
+            }
+            
+            addLog("DECRYPTION SUCCESSFUL.");
+        }
+    }, 150); // Speed of decryption (lower is faster)
+}
+function closeViewModal() { playSfx('click'); document.getElementById("viewCapsuleModal").classList.remove("active"); }
+function showToast(msg, type) { const t = document.getElementById("customToast"); t.innerText = msg; t.style.display = "block"; t.style.borderColor = type === 'error' ? 'red' : '#00f2ff'; t.style.color = type === 'error' ? 'red' : '#00f2ff'; setTimeout(() => t.style.display = "none", 3000); }
+async function loadProfile() { try { const res = await fetch(`${API_BASE}/api/users/me`, { headers: { Authorization: `Bearer ${token}` } }); if(!res.ok) return; const data = await res.json(); document.getElementById("profileName").innerText = data.name; document.getElementById("profileEmail").innerText = data.email; document.getElementById("profileImage").src = `${API_BASE}/api/users/profile-image/${data._id}?t=${new Date().getTime()}`; } catch(e) {} }
+loadProfile(); 
+/* =========================================
+   📸 PROFILE PHOTO LOGIC
+   ========================================= */
+
+// 1. TRIGGER IMAGE UPLOAD (When user selects a file)
+const profileInput = document.getElementById("profileUpload");
+
+if (profileInput) {
+    profileInput.addEventListener("change", async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Visual Feedback
+        addLog("UPLOADING BIOMETRIC DATA...");
+        playSfx('click');
+
+        // Prepare Data
+        const formData = new FormData();
+        formData.append("profileImage", file);
+
+        try {
+            // API Call
+            const res = await fetch(`${API_BASE}/api/users/upload-profile`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` }, // No Content-Type for FormData!
+                body: formData
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                addLog("PROFILE UPDATED SUCCESSFULLY.");
+                
+                // Refresh the image immediately (using timestamp to bypass cache)
+                refreshProfileImage();
+                
+                // Close menu
+                document.getElementById("profileMenu").style.display = "none";
+            } else {
+                alert("Upload failed.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Network error during upload.");
+        }
+    });
+}
+
+// 2. DELETE PROFILE PHOTO
+/* =========================================
+   🗑️ DELETE PROFILE PHOTO FUNCTION
+   ========================================= */
+/* =========================================
+   🔴 PROFILE PHOTO PURGE LOGIC
+   ========================================= */
+
+// 1. OPEN THE MODAL (Triggered by menu button)
+function deleteProfilePhoto() {
+    console.log("Opening Profile Purge UI...");
+    
+    // Close the profile menu first so it's not in the way
+    document.getElementById("profileMenu").style.display = "none";
+    
+    // Open the Red Warning Modal
+    document.getElementById("profilePurgeModal").classList.add("active");
+    playSfx('error');
+}
+
+// 2. CLOSE THE MODAL (Cancel)
+function closeProfileModal() {
+    document.getElementById("profilePurgeModal").classList.remove("active");
+    playSfx('click');
+}
+
+// 3. EXECUTE DELETE (Triggered by "CONFIRM" button)
+async function confirmProfilePurge() {
+    // Close UI immediately
+    closeProfileModal();
+    
+    playSfx('click');
+    addLog("PURGING BIOMETRIC DATA...");
+
+    try {
+        // API Call
+        const res = await fetch(`${API_BASE}/api/users/delete-profile-image`, {
+            method: "DELETE",
+            headers: { 
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        });
+
+        if (res.ok) {
+            addLog("PROFILE PHOTO DELETED.");
+            
+            // Reset image to default
+            // Make sure "defaultprofile.jpg" is in your folder!
+            document.getElementById("profileImage").src = "./defaultprofile.jpg"; 
+            
+            playSfx('warp'); // Success sound
+        } else {
+            console.error("Server Error:", res.status);
+            alert("System Error: Could not delete photo.");
+        }
+    } catch (err) {
+        console.error("Network Error:", err);
+        alert("Network Error.");
+    }
+}
+
+// 3. HELPER: REFRESH IMAGE WITHOUT RELOADING PAGE
+async function refreshProfileImage() {
+    try {
+        // Get user ID first
+        const userRes = await fetch(`${API_BASE}/api/users/me`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const userData = await userRes.json();
+        
+        // Update Src with a timestamp (?t=...) to force the browser to re-download it
+        const newSrc = `${API_BASE}/api/users/profile-image/${userData._id}?t=${new Date().getTime()}`;
+        document.getElementById("profileImage").src = newSrc;
+        
+    } catch (e) {
+        console.error("Failed to refresh image", e);
+    }
+}
+loadCapsules();
+function toggleProfileMenu() { playSfx('click'); const m = document.getElementById("profileMenu"); m.style.display = m.style.display === "flex" ? "none" : "flex"; }
+function logout() { localStorage.removeItem("token"); window.location.href="login.html"; }
+
+// ✅ 3D HOLOGRAM
+let sc3d, cam3d, rend3d, sanddial, rings = []; let is3DInit = false;
+function init3DSanddial() {
+    if(is3DInit) return; const box = document.getElementById('sanddial-container'); if (!box) return;
+    sc3d = new THREE.Scene(); cam3d = new THREE.PerspectiveCamera(75, box.clientWidth / box.clientHeight, 0.1, 1000); cam3d.position.z = 4.5;
+    rend3d = new THREE.WebGLRenderer({ antialias: true, alpha: true }); rend3d.setSize(box.clientWidth, box.clientHeight); box.innerHTML = ""; box.appendChild(rend3d.domElement);
+    const grp = new THREE.Group(); const wm = new THREE.MeshBasicMaterial({ color: 0x00f2ff, wireframe: true, transparent: true, opacity: 0.3 });
+    const coneG = new THREE.ConeGeometry(1, 1.5, 8, 1, true); const tc = new THREE.Mesh(coneG, wm); tc.position.y = 0.75; const bc = new THREE.Mesh(coneG, wm); bc.rotation.x = Math.PI; bc.position.y = -0.75;
+    grp.add(tc, bc); const rg = new THREE.TorusGeometry(2, 0.05, 8, 50); const rm = new THREE.MeshBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.6 });
+    const r1 = new THREE.Mesh(rg, rm); const r2 = new THREE.Mesh(rg, rm); r2.scale.set(0.8, 0.8, 0.8); const r3 = new THREE.Mesh(rg, rm); r3.scale.set(0.6, 0.6, 0.6);
+    grp.add(r1, r2, r3); rings = [r1, r2, r3];
+    const pg = new THREE.BufferGeometry(); const pp = new Float32Array(600); for(let i=0; i<600; i++) pp[i] = (Math.random() - 0.5) * 3; pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    const pm = new THREE.PointsMaterial({ color: 0x00f2ff, size: 0.03, transparent: true, opacity: 0.8 }); grp.add(new THREE.Points(pg, pm));
+    sc3d.add(grp); sanddial = grp; sc3d.add(new THREE.PointLight(0x00f2ff, 2, 50)); sc3d.add(new THREE.AmbientLight(0x404040));
+    let d = false, px = 0; box.addEventListener('mousedown', () => d = true); window.addEventListener('mouseup', () => d = false); box.addEventListener('mousemove', (e) => { if(d) sanddial.rotation.y += (e.clientX - px) * 0.01; px = e.clientX; });
+    is3DInit = true; animate3D();
+}
+function animate3D() { requestAnimationFrame(animate3D); if(sanddial) { sanddial.rotation.y += 0.005; rings[0].rotation.x += 0.01; rings[0].rotation.y += 0.01; rings[1].rotation.x -= 0.015; rings[1].rotation.z += 0.005; rings[2].rotation.y -= 0.02; } if(rend3d) rend3d.render(sc3d, cam3d); }
+const cvs = document.getElementById("starfield"); const ctx = cvs.getContext("2d"); let w, h, mouse={x:null,y:null};
+window.addEventListener("mousemove", e=>{mouse.x=e.clientX; mouse.y=e.clientY;}); window.addEventListener("mouseleave", ()=>{mouse.x=null; mouse.y=null;});
+function resize(){w=cvs.width=window.innerWidth; h=cvs.height=window.innerHeight;} resize(); window.addEventListener("resize", resize);
+const stars=[...Array(300)].map(()=>({x:Math.random()*w, y:Math.random()*h, vx:0, vy:0, r:Math.random()*2}));
+function animate(){ ctx.clearRect(0,0,w,h); stars.forEach(s=>{ if(mouse.x!=null){const dx=s.x-mouse.x, dy=s.y-mouse.y, d=Math.sqrt(dx*dx+dy*dy); if(d<150){const f=(150-d)/150; s.vx+=(dx/d)*f*1.5; s.vy+=(dy/d)*f*1.5;}} s.vx*=0.94; s.vy*=0.94; s.x+=s.vx; s.y+=s.vy; if(s.x<0)s.x=w; if(s.x>w)s.x=0; if(s.y<0)s.y=h; if(s.y>h)s.y=0; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=`rgba(0,242,255,${Math.min(Math.abs(s.vx)+Math.abs(s.vy)*0.5+0.3,1)})`; ctx.fill(); }); requestAnimationFrame(animate); } animate();
+
+/* ✅ 3D CARD TILT SCRIPT */
+function initTiltEffect() {
+    const cards = document.querySelectorAll(".capsule");
+    cards.forEach(card => {
+        card.addEventListener("mousemove", (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const rotateX = ((y - centerY) / centerY) * -10; // Max tilt 10deg
+            const rotateY = ((x - centerX) / centerX) * 10;
+            
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`;
+        });
+        card.addEventListener("mouseleave", () => {
+            card.style.transform = `perspective(1000px) rotateX(0) rotateY(0) scale(1)`;
+        });
+    });
+}
+/* ===== 🌌 PARALLAX NEBULA LOGIC ===== */
+window.addEventListener("mousemove", (e) => {
+    const moveX = (e.clientX - window.innerWidth / 2) * 0.01;
+    const moveY = (e.clientY - window.innerHeight / 2) * 0.01;
+    
+    const nebula = document.querySelector(".nebula-bg");
+    if(nebula) {
+        // Moves the background slightly in the opposite direction
+        nebula.style.transform = `translate(${moveX}px, ${moveY}px) scale(1.1)`;
+    }
+});
+function triggerPulse(x, y) {
+    const pulse = document.createElement("div");
+    pulse.className = "shockwave";
+    
+    // Position it at the click coordinates
+    pulse.style.left = `${x}px`;
+    pulse.style.top = `${y}px`;
+    
+    // Start the animation
+    pulse.style.animation = "rippleEffect 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards";
+    
+    document.body.appendChild(pulse);
+    
+    // Clean up after animation ends
+    setTimeout(() => pulse.remove(), 800);
+}
+/* ===== 👾 DIGITAL DECRYPTION (GLITCH) LOGIC ===== */
+const glyphs = 'ABCDEFGHIKLMNOPQRSTVXYZ0123456789<>_#$';
+
+function glitchText(element, originalText) {
+    if (!element || !originalText) return;
+    
+    let iterations = 0;
+    // Prevent multiple glitches on the same element
+    if (element.dataset.glitching === "true") return;
+    element.dataset.glitching = "true";
+
+    const interval = setInterval(() => {
+        element.innerText = originalText.split("")
+            .map((char, index) => {
+                if(index < iterations) return originalText[index];
+                return glyphs[Math.floor(Math.random() * glyphs.length)];
+            }).join("");
+        
+        if(iterations >= originalText.length) {
+            clearInterval(interval);
+            element.dataset.glitching = "false";
+        }
+        iterations += 1/2; 
+    }, 40);
+}
+function addLog(message) {
+    const logContainer = document.getElementById("systemLog") || createLogContainer();
+    const entry = document.createElement("div");
+    entry.className = "log-entry";
+    entry.innerText = `> ${new Date().toLocaleTimeString()} | ${message}`;
+    logContainer.prepend(entry);
+    
+    // Auto-remove old entries
+    if (logContainer.children.length > 5) {
+        logContainer.lastChild.remove();
+    }
+}
+
+function createLogContainer() {
+    const log = document.createElement("div");
+    log.id = "systemLog";
+    log.className = "system-log";
+    document.body.appendChild(log);
+    return log;
+}
+/* ===== 🎨 THEME SWITCHER LOGIC ===== */
+
+// Load saved theme on startup
+const savedTheme = localStorage.getItem('userTheme');
+if (savedTheme) {
+    document.body.className = savedTheme === 'default' ? '' : `theme-${savedTheme}`;
+}
+
+function toggleThemeMenu() {
+    playSfx('click');
+    const menu = document.getElementById('themeMenu');
+    menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+}
+
+function setTheme(themeName) {
+    playSfx('click');
+    
+    // Remove all old theme classes
+    document.body.className = ''; 
+    
+    if (themeName !== 'default') {
+        document.body.classList.add(`theme-${themeName}`);
+    }
+    
+    // Save preference
+    localStorage.setItem('userTheme', themeName);
+    
+    // Visual Feedback
+    addLog(`SYSTEM THEME UPDATED: ${themeName.toUpperCase()}`);
+    triggerPulse(window.innerWidth/2, window.innerHeight/2); // Re-trigger the pulse with new color!
+    
+    // Close menu
+    document.getElementById('themeMenu').style.display = 'none';
+}
+
+// Close menu if clicking outside
+window.addEventListener('click', (e) => {
+    if (!e.target.closest('#themeMenu') && !e.target.innerText.includes('palette')) {
+        document.getElementById('themeMenu').style.display = 'none';
+    }
+});
+// Initial Log
+addLog("SYSTEM INITIALIZED...");
+</script>
+</body>
+</html>
