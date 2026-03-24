@@ -39,10 +39,6 @@ button:disabled{opacity:.6}
 @keyframes spinSmall{to{transform:rotate(360deg)}}
 .register-link{text-align:center;margin-top:25px;font-size:.9rem;color:var(--text-secondary)}
 .register-link a{color:var(--accent);text-decoration:none;font-weight:600; cursor:pointer;}
-.forgot-pass{text-align:right; font-size:0.8rem; margin-top:-10px; margin-bottom:15px; display:block;}
-.forgot-pass a {color:var(--text-secondary); text-decoration:none; transition:0.2s; cursor:pointer;}
-.forgot-pass a:hover {color:var(--accent);}
-.hidden { display: none !important; }
 </style>
 </head>
 
@@ -74,57 +70,20 @@ button:disabled{opacity:.6}
                 <span class="material-symbols-outlined toggle-password" onclick="toggle('password', this)">visibility</span>
             </div>
         </div>
-        <div class="forgot-pass">
-            <a onclick="switchView('forgot')">Forgot Password?</a>
-        </div>
+        
         <button id="loginBtn" onclick="login()">
             <span id="btnText">LOGIN</span>
             <span id="spinner" class="spinner"></span>
         </button>
         <div class="register-link">New traveler? <a href="register.html">Register</a></div>
     </div>
-
-    <div id="step-forgot" class="hidden">
-        <p style="text-align:center; font-size:12px; margin-bottom:20px; color:var(--text-secondary);">Enter your email to receive a reset code.</p>
-        <div class="form-group">
-            <div class="input-wrapper">
-                <span class="material-symbols-outlined input-icon">mail</span>
-                <input id="resetEmail" placeholder="Email"/>
-            </div>
-        </div>
-        <button id="forgotBtn" onclick="requestReset()">
-            <span id="forgotBtnText">SEND CODE</span>
-            <span id="forgotSpinner" class="spinner"></span>
-        </button>
-        <div class="register-link"><a onclick="switchView('login')">Return to Login</a></div>
-    </div>
-
-    <div id="step-reset" class="hidden">
-        <p style="text-align:center; font-size:12px; margin-bottom:20px; color:var(--text-secondary);">Enter the 6-digit code and your new password.</p>
-        <div class="form-group">
-            <div class="input-wrapper">
-                <span class="material-symbols-outlined input-icon">password</span>
-                <input id="resetOtp" placeholder="OTP Code" maxlength="6" style="text-align:center; letter-spacing: 4px;"/>
-            </div>
-        </div>
-        <div class="form-group">
-            <div class="input-wrapper">
-                <span class="material-symbols-outlined input-icon">lock</span>
-                <input id="newPassword" type="password" placeholder="New Password"/>
-                <span class="material-symbols-outlined toggle-password" onclick="toggle('newPassword', this)">visibility</span>
-            </div>
-        </div>
-        <button id="resetBtn" onclick="updatePassword()">
-            <span id="resetBtnText">UPDATE PASSWORD</span>
-            <span id="resetSpinner" class="spinner"></span>
-        </button>
-        <div class="register-link"><a onclick="switchView('login')">Cancel</a></div>
-    </div>
 </main>
 
 <script>
-const API_BASE = "http://localhost:5000";
-let targetEmail = "";
+// Smart API switch: Uses localhost on your machine, but switches to Render when deployed
+const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" 
+    ? "http://localhost:5000" 
+    : "https://stasis-api.onrender.com"; // <-- Ensure this is your Render URL
 
 function toggle(id, icon){
   const el=document.getElementById(id);
@@ -140,29 +99,6 @@ function showMsg(type, text) {
     if (type === 'success') { suc.innerText = text; suc.style.display = "block"; }
 }
 
-function switchView(view) {
-    document.getElementById("error-msg").style.display = "none";
-    document.getElementById("success-msg").style.display = "none";
-    document.getElementById("step-login").classList.add("hidden");
-    document.getElementById("step-forgot").classList.add("hidden");
-    document.getElementById("step-reset").classList.add("hidden");
-    
-    if (view === 'login') {
-        document.getElementById("step-login").classList.remove("hidden");
-        document.getElementById("mainTitle").innerText = "ACCESS STASIS";
-        document.getElementById("subTitle").innerText = "AUTHENTICATE IDENTITY";
-    } else if (view === 'forgot') {
-        document.getElementById("step-forgot").classList.remove("hidden");
-        document.getElementById("mainTitle").innerText = "SYSTEM RECOVERY";
-        document.getElementById("subTitle").innerText = "LOCATE IDENTITY";
-    } else if (view === 'reset') {
-        document.getElementById("step-reset").classList.remove("hidden");
-        document.getElementById("mainTitle").innerText = "UPDATE CREDENTIALS";
-        document.getElementById("subTitle").innerText = "SECURE IDENTITY";
-    }
-}
-
-// 1. STANDARD LOGIN
 async function login(){
   const email=document.getElementById("email").value.trim();
   const password=document.getElementById("password").value;
@@ -191,66 +127,7 @@ async function login(){
   }
 }
 
-// 2. REQUEST OTP FOR PASSWORD RESET
-async function requestReset() {
-    const email = document.getElementById("resetEmail").value.trim();
-    const btn=document.getElementById("forgotBtn"), spinner=document.getElementById("forgotSpinner"), text=document.getElementById("forgotBtnText");
-
-    if(!email) return showMsg('error', "Please enter your email");
-    
-    btn.disabled=true; spinner.style.display="inline-block"; text.textContent="SENDING";
-
-    try {
-        const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email })
-        });
-        const data = await res.json();
-        
-        btn.disabled=false; spinner.style.display="none"; text.textContent="SEND CODE";
-        
-        if(!res.ok) return showMsg('error', data.msg);
-
-        targetEmail = email; // Save for next step
-        showMsg('success', "Recovery code sent!");
-        switchView('reset');
-    } catch(e) {
-        btn.disabled=false; spinner.style.display="none"; text.textContent="SEND CODE";
-        showMsg('error', "Server error");
-    }
-}
-
-// 3. SUBMIT NEW PASSWORD WITH OTP
-async function updatePassword() {
-    const otp = document.getElementById("resetOtp").value.trim();
-    const newPassword = document.getElementById("newPassword").value;
-    const btn=document.getElementById("resetBtn"), spinner=document.getElementById("resetSpinner"), text=document.getElementById("resetBtnText");
-
-    if(!otp || !newPassword) return showMsg('error', "Fill all fields");
-    if(newPassword.length < 6) return showMsg('error', "Password must be at least 6 characters");
-
-    btn.disabled=true; spinner.style.display="inline-block"; text.textContent="UPDATING";
-
-    try {
-        const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: targetEmail, otp, newPassword })
-        });
-        const data = await res.json();
-        
-        btn.disabled=false; spinner.style.display="none"; text.textContent="UPDATE PASSWORD";
-        
-        if(!res.ok) return showMsg('error', data.msg || "Invalid code");
-
-        showMsg('success', "Password updated successfully!");
-        setTimeout(() => { switchView('login'); document.getElementById("password").value = ""; }, 2000);
-    } catch(e) {
-        btn.disabled=false; spinner.style.display="none"; text.textContent="UPDATE PASSWORD";
-        showMsg('error', "Server error");
-    }
-}
-
-// Background Animation (unchanged)
+// Background Animation
 const canvas=document.getElementById("starfield"); const ctx=canvas.getContext("2d");
 let w,h; function resize(){w=canvas.width=innerWidth;h=canvas.height=innerHeight}
 resize();addEventListener("resize",resize);

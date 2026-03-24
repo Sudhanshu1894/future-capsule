@@ -40,7 +40,6 @@ button:disabled{opacity:.6}
 @keyframes spinSmall{to{transform:rotate(360deg)}}
 .login-link{ text-align:center; margin-top:22px; font-size:.9rem; color:var(--text-secondary); }
 .login-link a{ color:var(--accent); text-decoration:none; font-weight:600; cursor:pointer;}
-.hidden { display: none !important; }
 </style>
 </head>
 
@@ -58,59 +57,45 @@ button:disabled{opacity:.6}
     <div id="error-msg" class="msg error"></div>
     <div id="success-msg" class="msg success"></div>
 
-    <div id="step-register">
-        <div class="form-group">
-            <div class="input-wrapper">
-                <span class="material-symbols-outlined input-icon">badge</span>
-                <input id="name" placeholder="Full Name">
-            </div>
+    <div class="form-group">
+        <div class="input-wrapper">
+            <span class="material-symbols-outlined input-icon">badge</span>
+            <input id="name" placeholder="Full Name">
         </div>
-        <div class="form-group">
-            <div class="input-wrapper">
-                <span class="material-symbols-outlined input-icon">mail</span>
-                <input id="email" placeholder="Email">
-            </div>
-        </div>
-        <div class="form-group">
-            <div class="input-wrapper">
-                <span class="material-symbols-outlined input-icon">lock</span>
-                <input id="password" type="password" placeholder="Password">
-                <span class="material-symbols-outlined toggle-password" onclick="toggle('password', this)">visibility</span>
-            </div>
-        </div>
-        <div class="form-group">
-            <div class="input-wrapper">
-                <span class="material-symbols-outlined input-icon">lock_reset</span>
-                <input id="confirmPassword" type="password" placeholder="Confirm Password">
-                <span class="material-symbols-outlined toggle-password" onclick="toggle('confirmPassword', this)">visibility</span>
-            </div>
-        </div>
-        <button id="registerBtn" onclick="register()">
-            <span id="btnText">REGISTER</span>
-            <span id="spinner" class="spinner"></span>
-        </button>
-        <div class="login-link">Already initialized? <a href="login.html">Login</a></div>
     </div>
-
-    <div id="step-verify" class="hidden">
-        <p style="text-align:center; font-size:12px; margin-bottom:20px; color:var(--text-secondary);">A 6-digit verification code has been sent to your email.</p>
-        <div class="form-group">
-            <div class="input-wrapper">
-                <span class="material-symbols-outlined input-icon">password</span>
-                <input id="otpCode" placeholder="------" maxlength="6" style="text-align:center; letter-spacing: 8px; font-weight: bold;">
-            </div>
+    <div class="form-group">
+        <div class="input-wrapper">
+            <span class="material-symbols-outlined input-icon">mail</span>
+            <input id="email" placeholder="Email">
         </div>
-        <button id="verifyBtn" onclick="verifyOtp()">
-            <span id="verifyBtnText">VERIFY CODE</span>
-            <span id="verifySpinner" class="spinner"></span>
-        </button>
-        <div class="login-link"><a onclick="location.reload()">Cancel Registration</a></div>
     </div>
+    <div class="form-group">
+        <div class="input-wrapper">
+            <span class="material-symbols-outlined input-icon">lock</span>
+            <input id="password" type="password" placeholder="Password">
+            <span class="material-symbols-outlined toggle-password" onclick="toggle('password', this)">visibility</span>
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="input-wrapper">
+            <span class="material-symbols-outlined input-icon">lock_reset</span>
+            <input id="confirmPassword" type="password" placeholder="Confirm Password">
+            <span class="material-symbols-outlined toggle-password" onclick="toggle('confirmPassword', this)">visibility</span>
+        </div>
+    </div>
+    <button id="registerBtn" onclick="register()">
+        <span id="btnText">REGISTER</span>
+        <span id="spinner" class="spinner"></span>
+    </button>
+    
+    <div class="login-link">Already initialized? <a href="index.html">Login</a></div>
 </main>
 
 <script>
-const API_BASE = "http://localhost:5000";
-let userEmail = ""; // Store email for step 2
+// Smart API switch: Uses localhost on your machine, but switches to Render when deployed
+const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" 
+    ? "http://localhost:5000" 
+    : "https://stasis-api.onrender.com"; // <-- Ensure this is your Render URL
 
 function toggle(id, icon){
   const el=document.getElementById(id);
@@ -156,12 +141,8 @@ async function register(){
 
     if(!res.ok) return showMsg('error', data.msg || "User already exists");
 
-    // SUCCESS: Switch to Verification Step
-    userEmail = email; // Save for next step
-    document.getElementById("step-register").classList.add("hidden");
-    document.getElementById("step-verify").classList.remove("hidden");
-    document.getElementById("subTitle").innerText = "VERIFY EMAIL";
-    showMsg('success', "OTP sent to your email!");
+    showMsg('success', "Account Created! Redirecting to login...");
+    setTimeout(()=>location.href="index.html", 1500); // Redirects to index.html (Login)
     
   }catch{
     btn.disabled=false; spinner.style.display="none"; text.textContent="REGISTER";
@@ -169,37 +150,7 @@ async function register(){
   }
 }
 
-async function verifyOtp(){
-  const otp=document.getElementById("otpCode").value.trim();
-  const btn=document.getElementById("verifyBtn");
-  const spinner=document.getElementById("verifySpinner");
-  const text=document.getElementById("verifyBtnText");
-
-  if(otp.length < 6) return showMsg('error', "Enter 6-digit code");
-
-  btn.disabled=true; spinner.style.display="inline-block"; text.textContent="VERIFYING";
-
-  try{
-    const res=await fetch(`${API_BASE}/api/auth/verify-email`,{
-      method:"POST", headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({email: userEmail, otp})
-    });
-    const data=await res.json();
-    
-    btn.disabled=false; spinner.style.display="none"; text.textContent="VERIFY CODE";
-
-    if(!res.ok) return showMsg('error', data.msg || "Invalid code");
-
-    showMsg('success', "Verification complete! Redirecting to login...");
-    setTimeout(()=>location.href="login.html", 2000);
-
-  }catch{
-    btn.disabled=false; spinner.style.display="none"; text.textContent="VERIFY CODE";
-    showMsg('error', "Server error. Try again.");
-  }
-}
-
-// Background Animation (unchanged)
+// Background Animation
 const canvas=document.getElementById("starfield");
 const ctx=canvas.getContext("2d");
 let w,h;
