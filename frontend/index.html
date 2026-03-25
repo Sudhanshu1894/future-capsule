@@ -83,7 +83,7 @@ button:disabled{opacity:.6}
 // Smart API switch: Uses localhost on your machine, but switches to Render when deployed
 const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" 
     ? "http://localhost:5000" 
-    : "https://stasis-api.onrender.com"; // <-- Ensure this is your Render URL
+    : "https://future-capsule.onrender.com"; // <-- Connected to your live backend!
 
 function toggle(id, icon){
   const el=document.getElementById(id);
@@ -123,7 +123,7 @@ async function login(){
     location.href="dashboard.html";
   } catch(e) {
       btn.disabled=false; spinner.style.display="none"; text.textContent="LOGIN";
-      showMsg('error', "Server error");
+      showMsg('error', "Server error. Try again.");
   }
 }
 

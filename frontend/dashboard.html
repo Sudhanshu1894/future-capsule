@@ -719,9 +719,14 @@ body.hovering .cursor-outline { width: 60px; height: 60px; background: rgba(0, 2
 </div>
 
 <script>
-const API_BASE = "http://localhost:5000";
+// Smart API switch: Uses localhost on your machine, but switches to Render when deployed
+const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" 
+    ? "http://localhost:5000" 
+    : "https://future-capsule.onrender.com"; // <-- Connected to your live backend!
+
 const token = localStorage.getItem("token");
-if(!token) window.location.href = "login.html";
+// Redirect to index.html if not logged in
+if(!token) window.location.href = "index.html"; 
 
 /* ===== 🖱️ CUSTOM CURSOR LOGIC ===== */
 const cursorDot = document.getElementById("cursor-dot");
@@ -793,9 +798,10 @@ function switchTab(tabName) {
     if(tabName === 'create') setTimeout(init3DSanddial, 100);
     const btn = event.currentTarget;
     const indicator = document.getElementById('navIndicator');
-    indicator.style.width = btn.offsetWidth + 'px';
-    indicator.style.left = btn.offsetLeft + 'px';
-    
+    if(indicator) {
+        indicator.style.width = btn.offsetWidth + 'px';
+        indicator.style.left = btn.offsetLeft + 'px';
+    }
     addLog(`STREAM SHIFTED TO: ${tabName.toUpperCase()}`);
 }
 
@@ -1177,7 +1183,8 @@ async function refreshProfileImage() {
 }
 loadCapsules();
 function toggleProfileMenu() { playSfx('click'); const m = document.getElementById("profileMenu"); m.style.display = m.style.display === "flex" ? "none" : "flex"; }
-function logout() { localStorage.removeItem("token"); window.location.href="login.html"; }
+// ⚠️ Updated Logout route to index.html
+function logout() { localStorage.removeItem("token"); window.location.href="index.html"; }
 
 // ✅ 3D HOLOGRAM
 let sc3d, cam3d, rend3d, sanddial, rings = []; let is3DInit = false;
